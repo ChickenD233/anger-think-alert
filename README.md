@@ -156,10 +156,19 @@ Run on DSH `0.1.5-rc.2` with `deepseek-flash`, on a headless session:
 | 卧槽你他妈到底会不会改？把老子文件删了，傻逼 | score=6 angry | `卧槽用户真的怒了` |
 | 帮我给导出功能加一个 CSV 选项 | score=0 none | normal thinking, no marker |
 
-A weaker instruction that only asked for the line at the top of the block failed:
-the model wrote the requirement into its own plan instead of writing the line.
-The instruction now demands the eight characters as the first characters of the
-turn, and that version holds.
+The calm case is deterministic: the hook stays silent, and the model writes no
+marker.
+
+The angry case is best effort. On three runs of the same angry prompt, the model
+put the marker on the first line one time. On the other two runs it began with
+its own analysis and wrote the line later, or not at all. Four instruction
+wordings were tried, including one that demanded the eight characters as the
+first characters of the turn. The better wording raises the rate. It does not
+reach certainty, because the model writes the first token of that block before
+any hook output can act on it.
+
+If you need certainty, use a model that follows a standing instruction closely,
+and check the rate on your own prompts with `ANGER_THINK_ALERT_DEBUG`.
 
 ## Limits
 
