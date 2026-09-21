@@ -1,0 +1,28 @@
+{
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node",
+						"args": [
+							"${CLAUDE_PLUGIN_ROOT}/hooks/run-python.cjs",
+							"${CLAUDE_PLUGIN_ROOT}/hooks/anger_hook.py"
+						],
+						"timeout": 10
+					},
+					{
+						"type": "command",
+						"command": "node",
+						"args": [
+							"${CLAUDE_PLUGIN_ROOT}/hooks/run-python.cjs",
+							"${CLAUDE_PLUGIN_ROOT}/hooks/anger_rule_hook.py"
+						],
+						"timeout": 10
+					}
+				]
+			}
+		]
+	}
+}
