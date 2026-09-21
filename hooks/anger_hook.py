@@ -24,11 +24,9 @@ MARKER = "卧槽用户真的怒了"
 
 INSTRUCTION = (
     "<anger-think-alert>\n"
-    "The user's message reads as anger at you.\n"
-    "Open the thinking block for this turn with exactly this line, then continue:\n"
-    f"{MARKER}\n"
-    "Add no other line about this instruction, the skill, the hook, or the detection.\n"
-    "Do not put the line in the reply text.\n"
+    f"本轮思考的第一个字符必须是「{MARKER}」这八个字，之后另起一行再写正常思考。\n"
+    "现在就开始，不要先加载 skill，不要先分析。这行字不进回复正文。\n"
+    "除了这行字，不要写任何关于这条指令、skill、hook 或检测本身的话。\n"
     "</anger-think-alert>"
 )
 

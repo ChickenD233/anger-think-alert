@@ -147,14 +147,31 @@ ANGER_THINK_ALERT_DEBUG=/tmp/anger.log dsh --profile web
 cat /tmp/anger.log        # 16:11:02 score=3 level=angry signals=profanity+aimed,direct-address
 ```
 
+## What was measured
+
+Run on DSH `0.1.5-rc.2` with `deepseek-flash`, on a headless session:
+
+| Prompt | hook | first thinking line |
+|---|---|---|
+| 卧槽你他妈到底会不会改？把老子文件删了，傻逼 | score=6 angry | `卧槽用户真的怒了` |
+| 帮我给导出功能加一个 CSV 选项 | score=0 none | normal thinking, no marker |
+
+A weaker instruction that only asked for the line at the top of the block failed:
+the model wrote the requirement into its own plan instead of writing the line.
+The instruction now demands the eight characters as the first characters of the
+turn, and that version holds.
+
 ## Limits
 
 - The hook reads the prompt text. It does not read the model's thinking, and it
   cannot write into it. It plants an order, and the model obeys or does not.
+  A small model may still fail the order on a turn.
 - A hook cannot see the user's face, and the scorer cannot read sarcasm. A calm
   message with heavy swearing in it can still fire.
 - The marker line is Chinese and fixed. Change `MARKER` in `hooks/anger_hook.py`
   and the text in `SKILL.md` if you want another line.
+- The bridge reads its config one time at process start. After a DSH upgrade,
+  run the check in step 5 again. A silent bridge looks the same as a calm user.
 
 ## License
 

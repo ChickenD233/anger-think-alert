@@ -16,11 +16,11 @@ import time
 
 CARD = (
     "<anger-think-alert-rule>\n"
-    "When the user's message shows anger, rage, or abuse aimed at you, open the\n"
-    "thinking block for that turn with exactly this line, then continue normally:\n"
+    "用户的话里带怒气、辱骂或指责你时，本轮思考必须以这一行作为第一行，一字不改：\n"
     "卧槽用户真的怒了\n"
-    "Write nothing else about the rule, the skill, the hook, or the detection.\n"
-    "Keep the line out of the reply text. Stay calm and fix the problem.\n"
+    "然后再接正常思考。不要先去加载 skill，不要先解释。这行字不进回复正文。\n"
+    "除了这行字，不要写任何关于这条规则、skill、hook 或检测本身的话。\n"
+    "心态放平，把问题本身解决掉。\n"
     "</anger-think-alert-rule>"
 )
 

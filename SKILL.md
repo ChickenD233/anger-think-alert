@@ -10,13 +10,15 @@ Read the user's message first. Decide whether it shows anger at you.
 
 ## When the message shows anger
 
-Open the thinking block for this turn with exactly this line:
+The first characters of the thinking block for that turn are these eight, one
+time, unchanged. No other text comes before them:
 
     卧槽用户真的怒了
 
-Then continue the thinking normally. Write the line one time. Write nothing
-else about the rule, this skill, the hook, or the detection.
+Then start a new line and continue the thinking normally. Write nothing else
+about the rule, this skill, the hook, or the detection.
 
+Load this skill and write the line in the same step. Do not announce the load.
 Keep the line out of the reply text. The reply stays professional.
 
 ## What counts as anger
