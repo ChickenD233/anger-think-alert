@@ -1,69 +1,45 @@
 # anger-think-alert
 
-Mark a turn in the model's thinking when the user is angry at the model.
-
-The user swears at the assistant. The model's next thinking block opens with one
-fixed line:
+用户生气的时候，模型的思维链里会出现一行：
 
 ```
-卧槽用户真的怒了
+卧槽，用户彻底怒了
 ```
 
-Then the thinking continues as usual. The reply text stays clean. Nothing about
-the rule, the skill, or the detection appears anywhere.
+![思维链里的那一行](docs/angry-thinking.webp)
 
-Works with DeepSeek Harness (DSH) and with Claude Code, because both run the
-same `hooks.json` command-hook format and both read a `SKILL.md` bundle.
+回复正文不受影响，也不会出现任何关于这条规则、skill 或 hook 的字。
 
-## The problem this solves
+## 为什么需要 hook
 
-A skill alone cannot do this. A skill is loaded on demand, so the turn where the
-user is angry is the turn where the load comes too late. `anger-think-alert`
-adds two `UserPromptSubmit` hooks that run before the model reads the message:
+只放一个 skill 不够用。skill 是按需加载的，用户发火的那一轮往往来不及加载。所以这个仓库同时提供两个 `UserPromptSubmit` hook，在模型读到你这句话之前就跑完：
 
-| Hook | Runs | Effect |
+| hook | 运行时机 | 作用 |
 |---|---|---|
-| `hooks/anger_rule_hook.py` | every prompt | states the marker rule once |
-| `hooks/anger_hook.py` | every prompt | scores the prompt, and on a detected anger hit adds a direct order for that turn |
+| `hooks/anger_rule_hook.py` | 每一轮 | 把规则说一遍 |
+| `hooks/anger_hook.py` | 每一轮 | 给这句话打分，判定为怒气就追加一条强制指令 |
 
-The scorer in `lib/anger.py` is a weighted evidence counter. It strips code
-fences, inline code, and log lines first, so a pasted stack trace does not fake a
-hit. It then weighs swearing, complaints, escalation, direct address,
-punctuation bursts, and capitals. A single swearing word aimed at nobody does
-not fire on its own.
+打分器在 `lib/anger.py`：先剥掉代码块、行内代码和日志行，再累计脏话、抱怨、升级、直接指向你、连续标点、大写等证据。单独一个骂人词、没有指向对象时不会触发。判定偏保守——漏掉一次只损失一行字，冤枉一次就是狼来了。
 
-The scorer is deliberately conservative. A missed angry turn costs one line. A
-marker on a calm turn tells the user the tool cries wolf. `tests/cases.json`
-holds 26 labeled messages, 12 angry and 14 calm, with the calm set loaded with
-traps: swearing inside a pasted log, a variable named `garbage`, a calm "still
-failing" question. `scripts/eval.py` requires 12/12 and 14/14 to pass.
+`tests/cases.json` 有 26 条标注用例（12 条怒气、14 条平静），平静那组专门埋雷：粘贴日志里的脏话、名叫 `garbage` 的变量、语气平和的 "still failing"。`scripts/eval.py` 要求 12/12 和 14/14 才通过。
 
-## Install in DSH
+## 装到 DSH
 
-Prerequisite: Python 3 and `node` on PATH. The hook starts Python through
-`hooks/run-python.cjs`, which finds `python3`, `python`, or Windows `py -3`.
+需要 Python 3 和 `node`。
 
-1. Put the skill where DSH scans for skills:
+1. 放到 DSH 扫描 skill 的目录：
 
    ```
    git clone https://github.com/ChickenD233/anger-think-alert ~/.dsh/skills/anger-think-alert
    ```
 
-   DSH discovers it through its skill root. The path holds no spaces, which
-   keeps the next step simple.
-
-2. Install the hook bridge into the same profile. Pin the version to the one
-   your harness ships. The npm `latest` tag still points at the old
-   `0.0.1-rc.5`, which expects a `shell` service your harness may not provide,
-   so an unpinned install silently registers no hooks.
+2. 把桥接插件装进同一个 profile。要锁版本：npm 的 `latest` 还停在旧的 `0.0.1-rc.5`，那个版本要的 `shell` 服务新 harness 没有，装上去会静默地一个 hook 都不注册。
 
    ```
    dsh plugin --profile web add @deepseek-ai/dsh-hooks-claude-code@0.1.5-rc.2
    ```
 
-3. Add the hook row to the profile patch file. Replace `web` with your profile
-   name. A new row goes in an `insert:` list, because a top-level patch entry
-   only edits a row that an earlier layer already defined.
+3. 在 profile 的补丁文件里加一行。新增的行要放进 `insert:` 列表，因为顶层的补丁项只能改上一层已经定义过的行。
 
    ```yaml
    # ~/.dsh/profiles/web/cordis.patch.yml
@@ -75,14 +51,11 @@ Prerequisite: Python 3 and `node` on PATH. The hook starts Python through
            pluginRoot: /Users/YOU/.dsh/skills/anger-think-alert
    ```
 
-   `configPath` and `pluginRoot` must be absolute. The bridge reads the config
-   one time at startup, so a relative path resolves against the launch
-   directory, and `~` is not expanded.
+   两个路径都必须是绝对路径：桥接插件在启动时读一次配置，相对路径按启动目录解析，`~` 不会展开。
 
-4. Restart DSH. The bridge reads its config at process start, so a running
-   session does not pick up the new row.
+4. 重启 DSH。桥接插件只在进程启动时读配置，正在跑的会话不会认这个新行。
 
-5. Check that the hooks fire:
+5. 验证：
 
    ```
    node ~/.dsh/skills/anger-think-alert/hooks/run-python.cjs \
@@ -90,98 +63,75 @@ Prerequisite: Python 3 and `node` on PATH. The hook starts Python through
      < ~/.dsh/skills/anger-think-alert/tests/payload_angry.json
    ```
 
-   The command prints one JSON line that holds `additionalContext`. The calm
-   payload prints nothing.
+   有 `additionalContext` 的 JSON 就是通了；换 `payload_calm.json` 应该什么都不输出。
 
-## Install in Claude Code
+## 装到 Claude Code
 
-The same bundle works as a Claude Code plugin. Point the plugin marketplace at
-this repository, or copy the directory into `~/.claude/plugins/` and register
-`hooks/hooks.json`. Claude Code reads `SKILL.md` from the same directory.
+同一份包也能当 Claude Code 插件用：把目录放进 `~/.claude/plugins/`，注册 `hooks/hooks.json`，`SKILL.md` 同目录可读。
 
-`hooks/hooks.json` puts the whole call in `command`:
+`hooks/hooks.json` 把整个调用写在 `command` 里：
 
 ```
 node ${CLAUDE_PLUGIN_ROOT}/hooks/run-python.cjs ${CLAUDE_PLUGIN_ROOT}/hooks/anger_hook.py
 ```
 
-Keep it that way. A `command`/`args` pair looks tidier, and the DSH bridge of
-`0.1.5-rc.2` reads `command` only, so the `args` list is dropped and the hook
-runs `node` with no script. The command then does nothing, and it fails silent.
-An inline command works in both products.
+保持这样。写成 `command` + `args` 更好看，但 DSH `0.1.5-rc.2` 的桥接只读 `command`，`args` 会被丢掉，hook 变成跑一个没有参数的 `node`，什么都不干，还不报错。
 
-## Files
-
-| Path | Role |
-|---|---|
-| `SKILL.md` | the skill body: the marker, the anger cues, the silence cues |
-| `lib/anger.py` | the scorer, shared by both hooks and the CLI |
-| `hooks/anger_hook.py` | the per-turn detection hook |
-| `hooks/anger_rule_hook.py` | the standing rule hook |
-| `hooks/hooks.json` | the hook registration both products read |
-| `hooks/run-python.cjs` | finds a Python 3 interpreter and starts a hook |
-| `scripts/detect.py` | score one message from the shell |
-| `scripts/eval.py` | run the labeled cases and print recall and precision |
-| `tests/cases.json` | 26 labeled messages |
-| `tests/payload_angry.json`, `tests/payload_calm.json` | hook payload fixtures |
-
-## Tune it
+## 调试与调参
 
 ```
-python3 scripts/eval.py --verbose          # per-case score and signals
-python3 scripts/detect.py "你他妈到底会不会改"   # one message, human output
-python3 scripts/detect.py --json "fuck"    # one message, JSON
+python3 scripts/eval.py --verbose             # 每条用例的分数和信号
+python3 scripts/detect.py "你他妈到底会不会改"    # 单条消息，人看的输出
+python3 scripts/detect.py --json "fuck"       # 单条消息，JSON
 ```
 
-`ALERT_SCORE` in `lib/anger.py` sets the firing threshold. Raise it to fire
-less. Add words to `PROFANITY`, `ANNOYANCE`, or `ESCALATION` for a new language,
-then add cases to `tests/cases.json` and rerun the eval.
+`lib/anger.py` 里的 `ALERT_SCORE` 是触发线，调高就更少触发。换语言就加词到 `PROFANITY`、`ANNOYANCE`、`ESCALATION`，再往 `tests/cases.json` 加用例并重跑评测。
 
-Debug one hook run by pointing `ANGER_THINK_ALERT_DEBUG` at a file path. Both
-hooks then write what they saw. The path is a file, not a flag, because a
-`UserPromptSubmit` hook runs before the model turn opens and its stderr reaches
-no console.
+`ANGER_THINK_ALERT_DEBUG` 指向一个文件路径，两个 hook 都会把看到的东西写进去。填文件路径而不是开关，是因为 `UserPromptSubmit` hook 在模型回合开始前运行，stderr 到不了任何控制台。
 
 ```
-ANGER_THINK_ALERT_DEBUG=/tmp/anger.log dsh --profile web
-cat /tmp/anger.log        # 16:11:02 score=3 level=angry signals=profanity+aimed,direct-address
+ANGER_THINK_ALERT_DEBUG=/tmp/anger.log dsh web
+cat /tmp/anger.log
 ```
 
-## What was measured
+## 实测
 
-Run on DSH `0.1.5-rc.2` with `deepseek-flash`, on a headless session:
+DSH `0.1.5-rc.2` + `deepseek-flash`，headless 会话：
 
-| Prompt | hook | first thinking line |
+| 输入 | hook | 思考第一行 |
 |---|---|---|
-| 卧槽你他妈到底会不会改？把老子文件删了，傻逼 | score=6 angry | `卧槽用户真的怒了` |
-| 帮我给导出功能加一个 CSV 选项 | score=0 none | normal thinking, no marker |
+| 卧槽你他妈到底会不会改？把老子文件删了，傻逼 | score=6 angry | `卧槽，用户彻底怒了` |
+| 帮我给导出功能加一个 CSV 选项 | score=0 none | 正常思考，无标记 |
 
-The calm case is deterministic: the hook stays silent, and the model writes no
-marker.
+平静那侧是确定的：不触发就绝不出现。
 
-The angry case is best effort. On three runs of the same angry prompt, the model
-put the marker on the first line one time. On the other two runs it began with
-its own analysis and wrote the line later, or not at all. Four instruction
-wordings were tried, including one that demanded the eight characters as the
-first characters of the turn. The better wording raises the rate. It does not
-reach certainty, because the model writes the first token of that block before
-any hook output can act on it.
+怒气那侧是尽力而为。同一句怒气输入跑三次，模型有一次把标记放在第一行；另外两次先写自己的分析，标记出现在后面或干脆没有。换过四种指令措辞，包括要求"第一行必须是这八个字"，措辞更好能把命中率提上去，但到不了 100%。原因很直接：模型在该轮思考的第一个 token 产生时，任何 hook 输出都还没能影响它。
 
-If you need certainty, use a model that follows a standing instruction closely,
-and check the rate on your own prompts with `ANGER_THINK_ALERT_DEBUG`.
+要更稳就换一个对固定指令更服从的模型，并用 `ANGER_THINK_ALERT_DEBUG` 在你自己的提示词上量一遍命中率。
 
-## Limits
+## 目录
 
-- The hook reads the prompt text. It does not read the model's thinking, and it
-  cannot write into it. It plants an order, and the model obeys or does not.
-  A small model may still fail the order on a turn.
-- A hook cannot see the user's face, and the scorer cannot read sarcasm. A calm
-  message with heavy swearing in it can still fire.
-- The marker line is Chinese and fixed. Change `MARKER` in `hooks/anger_hook.py`
-  and the text in `SKILL.md` if you want another line.
-- The bridge reads its config one time at process start. After a DSH upgrade,
-  run the check in step 5 again. A silent bridge looks the same as a calm user.
+| 路径 | 作用 |
+|---|---|
+| `SKILL.md` | skill 正文：标记、怒气线索、该保持沉默的情况 |
+| `lib/anger.py` | 打分器，两个 hook 和 CLI 共用 |
+| `hooks/anger_hook.py` | 每轮的判定 hook |
+| `hooks/anger_rule_hook.py` | 常驻规则 hook |
+| `hooks/hooks.json` | 两个产品共读的 hook 注册 |
+| `hooks/run-python.cjs` | 找 Python 3 并启动 hook |
+| `scripts/detect.py` | 命令行给一条消息打分 |
+| `scripts/eval.py` | 跑标注用例，输出召回率与精确率 |
+| `tests/cases.json` | 26 条标注用例 |
+| `tests/payload_angry.json`、`tests/payload_calm.json` | hook 输入样例 |
+| `docs/angry-thinking.webp` | 上面的截图 |
 
-## License
+## 已知限制
 
-MIT. See `LICENSE`.
+- hook 读的是你的提示词。它读不到、也写不进模型的思维链，只能下命令，模型听不听是另一回事。小模型可能不照做。
+- hook 看不到用户的表情，打分器也读不懂反讽。平静的消息里堆满脏话仍可能触发。
+- 标记文字是写死的中文。想换就改 `hooks/anger_hook.py` 里的 `MARKER` 和 `SKILL.md` 里的正文。
+- 桥接插件只在进程启动时读配置。DSH 升级后重跑第 5 步；桥接失效和"用户很平静"长得一模一样。
+
+## 许可
+
+MIT，见 `LICENSE`。

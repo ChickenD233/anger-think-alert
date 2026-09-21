@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath
 
 from anger import decide  # noqa: E402
 
-MARKER = "卧槽用户真的怒了"
+MARKER = "卧槽，用户彻底怒了"
 
 INSTRUCTION = (
     "<anger-think-alert>\n"
