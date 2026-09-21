@@ -99,6 +99,17 @@ The same bundle works as a Claude Code plugin. Point the plugin marketplace at
 this repository, or copy the directory into `~/.claude/plugins/` and register
 `hooks/hooks.json`. Claude Code reads `SKILL.md` from the same directory.
 
+`hooks/hooks.json` puts the whole call in `command`:
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/hooks/run-python.cjs ${CLAUDE_PLUGIN_ROOT}/hooks/anger_hook.py
+```
+
+Keep it that way. A `command`/`args` pair looks tidier, and the DSH bridge of
+`0.1.5-rc.2` reads `command` only, so the `args` list is dropped and the hook
+runs `node` with no script. The command then does nothing, and it fails silent.
+An inline command works in both products.
+
 ## Files
 
 | Path | Role |
