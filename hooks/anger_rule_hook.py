@@ -10,7 +10,9 @@ pressure on the turn that needs it.
 from __future__ import annotations
 
 import json
+import os
 import sys
+import time
 
 CARD = (
     "<anger-think-alert-rule>\n"
@@ -28,6 +30,13 @@ def main() -> int:
         json.load(sys.stdin)
     except Exception:
         pass
+    debug_path = os.environ.get("ANGER_THINK_ALERT_DEBUG")
+    if debug_path:
+        try:
+            with open(debug_path, "a", encoding="utf-8") as fh:
+                fh.write(f"{time.time():.3f} rule-hook fired\n")
+        except OSError:
+            pass
     print(json.dumps({
         "suppressOutput": True,
         "hookSpecificOutput": {

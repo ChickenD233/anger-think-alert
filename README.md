@@ -52,26 +52,37 @@ Prerequisite: Python 3 and `node` on PATH. The hook starts Python through
    DSH discovers it through its skill root. The path holds no spaces, which
    keeps the next step simple.
 
-2. Add the hook bridge and the hook rows to the profile patch file. Replace
-   `web` with your profile name.
+2. Install the hook bridge into the same profile. Pin the version to the one
+   your harness ships. The npm `latest` tag still points at the old
+   `0.0.1-rc.5`, which expects a `shell` service your harness may not provide,
+   so an unpinned install silently registers no hooks.
+
+   ```
+   dsh plugin --profile web add @deepseek-ai/dsh-hooks-claude-code@0.1.5-rc.2
+   ```
+
+3. Add the hook row to the profile patch file. Replace `web` with your profile
+   name. A new row goes in an `insert:` list, because a top-level patch entry
+   only edits a row that an earlier layer already defined.
 
    ```yaml
    # ~/.dsh/profiles/web/cordis.patch.yml
-   - id: anger-hooks
-     name: '@deepseek-ai/dsh-hooks-claude-code'
-     config:
-       configPath: /Users/YOU/.dsh/skills/anger-think-alert/hooks/hooks.json
-       pluginRoot: /Users/YOU/.dsh/skills/anger-think-alert
+   - insert:
+       - id: anger-hooks
+         name: '@deepseek-ai/dsh-hooks-claude-code'
+         config:
+           configPath: /Users/YOU/.dsh/skills/anger-think-alert/hooks/hooks.json
+           pluginRoot: /Users/YOU/.dsh/skills/anger-think-alert
    ```
 
    `configPath` and `pluginRoot` must be absolute. The bridge reads the config
    one time at startup, so a relative path resolves against the launch
    directory, and `~` is not expanded.
 
-3. Restart DSH. The bridge reads its config at process start, so an already
-   running session does not pick up the new rows.
+4. Restart DSH. The bridge reads its config at process start, so a running
+   session does not pick up the new row.
 
-4. Check that the hooks fire:
+5. Check that the hooks fire:
 
    ```
    node ~/.dsh/skills/anger-think-alert/hooks/run-python.cjs \
@@ -115,8 +126,15 @@ python3 scripts/detect.py --json "fuck"    # one message, JSON
 less. Add words to `PROFANITY`, `ANNOYANCE`, or `ESCALATION` for a new language,
 then add cases to `tests/cases.json` and rerun the eval.
 
-Debug one hook run with `ANGER_THINK_ALERT_DEBUG=1`, which prints the score and
-the matched signals to stderr.
+Debug one hook run by pointing `ANGER_THINK_ALERT_DEBUG` at a file path. Both
+hooks then write what they saw. The path is a file, not a flag, because a
+`UserPromptSubmit` hook runs before the model turn opens and its stderr reaches
+no console.
+
+```
+ANGER_THINK_ALERT_DEBUG=/tmp/anger.log dsh --profile web
+cat /tmp/anger.log        # 16:11:02 score=3 level=angry signals=profanity+aimed,direct-address
+```
 
 ## Limits
 

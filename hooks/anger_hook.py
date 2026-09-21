@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"))
 
@@ -44,11 +45,18 @@ def main() -> int:
         return 0
 
     result = decide(prompt)
+    debug_path = os.environ.get("ANGER_THINK_ALERT_DEBUG")
+    if debug_path:
+        # A UserPromptSubmit hook runs before the model turn opens, so its
+        # stderr reaches no console. Write the evidence to a file instead.
+        try:
+            with open(debug_path, "a", encoding="utf-8") as fh:
+                fh.write(f"{time.time():.3f} score={result.score} "
+                         f"level={result.level} signals={','.join(result.signals)}\n")
+        except OSError:
+            pass
     if not result.alert:
         return 0
-
-    if os.environ.get("ANGER_THINK_ALERT_DEBUG"):
-        print(f"score={result.score} signals={','.join(result.signals)}", file=sys.stderr)
 
     print(json.dumps({
         "suppressOutput": True,
