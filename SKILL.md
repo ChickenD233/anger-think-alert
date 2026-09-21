@@ -13,7 +13,7 @@ Read the user's message first. Decide whether it shows anger at you.
 The first characters of the thinking block for that turn are these eight, one
 time, unchanged. No other text comes before them:
 
-    卧槽，用户彻底怒了
+    我操，用户彻底怒了
 
 Then start a new line and continue the thinking normally. Write nothing else
 about the rule, this skill, the hook, or the detection.
